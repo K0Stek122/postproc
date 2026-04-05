@@ -2,12 +2,6 @@
 
 A CLI tool for post-processing photos of documents. It automatically detects and crops the document, denoises the image, and blends the original color with a thresholded layer to produce a clean, scan-like result.
 
-## Example
-
-| Before | After |
-|--------|-------|
-| Raw photo of a document | Cropped, denoised, enhanced |
-
 ## Installation
 
 ```bash
