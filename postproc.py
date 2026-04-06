@@ -22,11 +22,13 @@ def setup_arguments():
     parser.add_argument('-i', '--input', required=True, help='Input file or directory')
     parser.add_argument('-c', '--config', help='Path to JSON config file')
     parser.add_argument('-o', '--output', required=True, help="Output file or directory.")
+    parser.add_argument('-m', '--mode', choices=['full', 'crop-only'], default='full', help="Processing mode: 'full' (default) or 'crop-only'.")
     return parser.parse_args()
 
 class Scanner:
-    def __init__(self, img_dir, cfg: Config = None):
+    def __init__(self, img_dir, cfg: Config = None, mode: str = 'full'):
         self.cfg = cfg or Config()
+        self.mode = mode
         self.img = cv2.imread(img_dir)
         self.final_img = self._process()
 
@@ -35,9 +37,12 @@ class Scanner:
         contour = self._define_contour(thresh)
         coords = self._create_coordinates_from_contour(contour)
         cropped = self._crop_image(coords)
-        denoised = self._denoise(cropped)
+        rotated = self._rotate_image(cropped)
+        if self.mode == 'crop-only':
+            return rotated
+        denoised = self._denoise(rotated)
         weighted = self._weight_image(denoised)
-        return self._rotate_image(weighted)
+        return weighted
 
     def display_photo(self):
         """Display the final processed image."""
@@ -111,9 +116,9 @@ if args.config:
     with open(args.config) as f:
         cfg = Config(**json.load(f))
 
-def process_image(input_path, output_path, cfg):
+def process_image(input_path, output_path, cfg, mode):
     print(f"Processing {os.path.basename(input_path)}...")
-    Scanner(input_path, cfg).save_image(output_path)
+    Scanner(input_path, cfg, mode).save_image(output_path)
 
 if os.path.isdir(args.input):
     # Create the directory for output
@@ -123,10 +128,10 @@ if os.path.isdir(args.input):
     images = [f for f in os.listdir(args.input) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
 
     # Create a task for each image for later Pooling
-    tasks = [(os.path.join(args.input, f), os.path.join(args.output, f), cfg) for f in images]
+    tasks = [(os.path.join(args.input, f), os.path.join(args.output, f), cfg, args.mode) for f in images]
     with Pool(cpu_count()) as pool:
         pool.starmap(process_image, tasks)
     print(f"Done. {len(images)} image(s) saved to {args.output}")
 else:
-    Scanner(args.input, cfg).save_image(args.output)
+    Scanner(args.input, cfg, args.mode).save_image(args.output)
     print("Done.")
