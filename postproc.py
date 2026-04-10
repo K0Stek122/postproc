@@ -145,14 +145,39 @@ class RotateStage(Stage):
         return img
 
 
+class MultiCropStage(Stage):
+    def process(self, img: np.ndarray) -> list[np.ndarray]:
+        n = self.params.get("objects", 1)
+        gaussian_strength = tuple(self.params.get("gaussian_strength", [5, 5]))
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, gaussian_strength, 0)
+        _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        min_area = img.shape[0] * img.shape[1] * 0.01
+        significant = sorted(
+            [c for c in contours if cv2.contourArea(c) > min_area],
+            key=cv2.contourArea,
+            reverse=True
+        )[:n]
+
+        crops = []
+        for contour in significant:
+            x, y, w, h = cv2.boundingRect(contour)
+            crops.append(img[y:y+h, x:x+w])
+        return crops
+
+
 class Scanner:
     _STAGE_REGISTRY = {
-        "CropStage":    CropStage,
-        "DenoiseStage": DenoiseStage,
-        "ClaheStage":   ClaheStage,
-        "WeightStage":  WeightStage,
-        "RotateStage":  RotateStage,
-        "PerspectiveCropStage" : PerspectiveCropStage
+        "CropStage":            CropStage,
+        "PerspectiveCropStage": PerspectiveCropStage,
+        "DenoiseStage":         DenoiseStage,
+        "ClaheStage":           ClaheStage,
+        "WeightStage":          WeightStage,
+        "RotateStage":          RotateStage,
+        "MultiCropStage":       MultiCropStage,
     }
 
     def __init__(self, img_dir, pipeline: dict = None):
@@ -163,7 +188,10 @@ class Scanner:
     def _process(self):
         img = self.img
         for stage_name, params in self.pipeline.items():
-            img = self._STAGE_REGISTRY[stage_name](params).process(img)
+            result = self._STAGE_REGISTRY[stage_name](params).process(img)
+            if isinstance(result, list):
+                return result  # terminal stage — stop processing
+            img = result
         return img
 
     def display_photo(self):
@@ -176,7 +204,12 @@ class Scanner:
 
     def save_image(self, output_path: str):
         """Save the final processed image to disk."""
-        cv2.imwrite(output_path, self.final_img)
+        if isinstance(self.final_img, list):
+            base, ext = os.path.splitext(output_path)
+            for i, crop in enumerate(self.final_img, 1):
+                cv2.imwrite(f"{base}_{i}{ext}", crop)
+        else:
+            cv2.imwrite(output_path, self.final_img)
 
 
 args = setup_arguments()
@@ -198,5 +231,8 @@ if os.path.isdir(args.input):
         pool.starmap(process_image, tasks)
     print(f"Done. {len(images)} image(s) saved to {args.output}")
 else:
-    Scanner(args.input, pipeline).save_image(args.output)
+    output_path = args.output
+    if os.path.isdir(output_path):
+        output_path = os.path.join(output_path, os.path.basename(args.input))
+    Scanner(args.input, pipeline).save_image(output_path)
     print("Done.")
