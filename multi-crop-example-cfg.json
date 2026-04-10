@@ -1,0 +1,6 @@
+{
+    "MultiCropStage" : {
+        "objects": 6,
+        "gaussian_strength": [5, 5]
+    }
+}

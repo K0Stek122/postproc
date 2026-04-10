@@ -1,8 +1,8 @@
 {
-    "gaussian_strength": [5, 5],
-    "denoise_strength": 10,
-    "adaptive_threshold_block_size": 51,
-    "adaptive_threshold_sensitivity": 15,
-    "original_color_percentage": 0.8,
-    "rotation_degrees": 270
+    "CropStage": {
+        "gaussian_strength": [5, 5]
+    },
+    "RotateStage" : {
+        "rotation_degrees" : 270
+    }
 }
