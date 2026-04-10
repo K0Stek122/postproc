@@ -11,6 +11,7 @@ DEFAULT_CONFIG = {
     "ClaheStage":   {"clahe_clip_limit": 2.0, "clahe_tile_grid_size": [8, 8]},
     "WeightStage":  {"adaptive_threshold_block_size": 51, "adaptive_threshold_sensitivity": 15, "original_color_percentage": 0.4},
     "RotateStage":  {"rotation_degrees": 270},
+    "PerspectiveCropStage" : {"gaussian_strength": [5, 5]},
 }
 
 
@@ -45,6 +46,53 @@ class CropStage(Stage):
         merged = np.vstack(significant)
         x, y, w, h = cv2.boundingRect(merged)
         return img[y:y+h, x:x+w]
+
+
+class PerspectiveCropStage(Stage):
+    def process(self, img: np.ndarray) -> np.ndarray:
+        gaussian_strength = tuple(self.params.get("gaussian_strength", [5, 5]))
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, gaussian_strength, 0)
+        _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        min_area = img.shape[0] * img.shape[1] * 0.01
+        significant = [c for c in contours if cv2.contourArea(c) > min_area]
+
+        # Use the largest contour and approximate to a polygon.
+        # Increase epsilon until we get exactly 4 corners (or give up and use the bounding box).
+        largest = max(significant, key=cv2.contourArea)
+        epsilon = 0.02 * cv2.arcLength(largest, True)
+        approx = cv2.approxPolyDP(largest, epsilon, True)
+        while len(approx) > 4:
+            epsilon *= 1.1
+            approx = cv2.approxPolyDP(largest, epsilon, True)
+
+        if len(approx) == 4:
+            corners = approx.reshape(4, 2).astype(np.float32)
+        else:
+            # Fewer than 4 points — fall back to the axis-aligned bounding box
+            x, y, w, h = cv2.boundingRect(largest)
+            corners = np.array([[x, y], [x+w, y], [x+w, y+h], [x, y+h]], dtype=np.float32)
+
+        # Order corners: top-left, top-right, bottom-right, bottom-left
+        s = corners.sum(axis=1)
+        d = np.diff(corners, axis=1)
+        ordered = np.array([
+            corners[np.argmin(s)],   # top-left     (smallest x+y)
+            corners[np.argmin(d)],   # top-right     (smallest x-y)
+            corners[np.argmax(s)],   # bottom-right  (largest x+y)
+            corners[np.argmax(d)],   # bottom-left   (largest x-y)
+        ], dtype=np.float32)
+
+        tl, tr, br, bl = ordered
+        width  = int(max(np.linalg.norm(br - bl), np.linalg.norm(tr - tl)))
+        height = int(max(np.linalg.norm(tr - br), np.linalg.norm(tl - bl)))
+
+        dst = np.array([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]], dtype=np.float32)
+        M = cv2.getPerspectiveTransform(ordered, dst)
+        return cv2.warpPerspective(img, M, (width, height))
 
 
 class DenoiseStage(Stage):
@@ -97,6 +145,7 @@ class Scanner:
         "ClaheStage":   ClaheStage,
         "WeightStage":  WeightStage,
         "RotateStage":  RotateStage,
+        "PerspectiveCropStage" : PerspectiveCropStage
     }
 
     def __init__(self, img_dir, pipeline: dict = None):
