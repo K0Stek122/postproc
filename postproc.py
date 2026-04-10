@@ -86,6 +86,13 @@ class PerspectiveCropStage(Stage):
             corners[np.argmax(d)],   # bottom-left   (largest x-y)
         ], dtype=np.float32)
 
+        margin = self.params.get("margin", 0)
+        if margin > 0:
+            centroid = ordered.mean(axis=0)
+            for i in range(4):
+                direction = ordered[i] - centroid
+                ordered[i] = ordered[i] + direction / np.linalg.norm(direction) * margin
+
         tl, tr, br, bl = ordered
         width  = int(max(np.linalg.norm(br - bl), np.linalg.norm(tr - tl)))
         height = int(max(np.linalg.norm(tr - br), np.linalg.norm(tl - bl)))
