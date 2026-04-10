@@ -20,42 +20,12 @@ def setup_arguments():
     parser.add_argument('-i', '--input', required=True, help='Input file or directory')
     parser.add_argument('-c', '--config', help='Path to JSON config file')
     parser.add_argument('-o', '--output', required=True, help="Output file or directory.")
-    parser.add_argument('-m', '--mode', choices=['full', 'crop-only'], default='full', help="Processing mode: 'full' (default) or 'crop-only'.")
     return parser.parse_args()
 
-<<<<<<< HEAD
 
 class Stage:
     def __init__(self, params: dict):
         self.params = params
-=======
-class Scanner:
-    def __init__(self, img_dir, cfg: Config = None, mode: str = 'full'):
-        self.cfg = cfg or Config()
-        self.mode = mode
-        self.img = cv2.imread(img_dir)
-        self.final_img = self._process()
-
-    def _process(self):
-        thresh = self._preprocess()
-        contour = self._define_contour(thresh)
-        coords = self._create_coordinates_from_contour(contour)
-        cropped = self._crop_image(coords)
-        rotated = self._rotate_image(cropped)
-        if self.mode == 'crop-only':
-            return rotated
-        denoised = self._denoise(rotated)
-        weighted = self._weight_image(denoised)
-        return weighted
-
-    def display_photo(self):
-        """Display the final processed image."""
-        cv2.namedWindow('pic', cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty('pic', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        cv2.imshow('pic', self.final_img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
->>>>>>> master
 
     def process(self, img: np.ndarray) -> np.ndarray:
         raise NotImplementedError
@@ -249,36 +219,20 @@ if args.config:
     with open(args.config) as f:
         pipeline = json.load(f)
 
-<<<<<<< HEAD
 def process_image(input_path, output_path, pipeline):
     print(f"Processing {os.path.basename(input_path)}...")
     Scanner(input_path, pipeline).save_image(output_path)
-=======
-def process_image(input_path, output_path, cfg, mode):
-    print(f"Processing {os.path.basename(input_path)}...")
-    Scanner(input_path, cfg, mode).save_image(output_path)
->>>>>>> master
 
 if os.path.isdir(args.input):
     os.makedirs(args.output, exist_ok=True)
     images = [f for f in os.listdir(args.input) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
-<<<<<<< HEAD
     tasks = [(os.path.join(args.input, f), os.path.join(args.output, f), pipeline) for f in images]
-=======
-
-    # Create a task for each image for later Pooling
-    tasks = [(os.path.join(args.input, f), os.path.join(args.output, f), cfg, args.mode) for f in images]
->>>>>>> master
     with Pool(cpu_count()) as pool:
         pool.starmap(process_image, tasks)
     print(f"Done. {len(images)} image(s) saved to {args.output}")
 else:
-<<<<<<< HEAD
     output_path = args.output
     if os.path.isdir(output_path):
         output_path = os.path.join(output_path, os.path.basename(args.input))
     Scanner(args.input, pipeline).save_image(output_path)
-=======
-    Scanner(args.input, cfg, args.mode).save_image(args.output)
->>>>>>> master
     print("Done.")
