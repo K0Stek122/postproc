@@ -1,8 +1,20 @@
 {
-    "gaussian_strength": [5, 5],
-    "denoise_strength": 10,
-    "adaptive_threshold_block_size": 51,
-    "adaptive_threshold_sensitivity": 15,
-    "original_color_percentage": 0.8,
-    "rotation_degrees": 270
+    "CropStage": {
+        "gaussian_strength": [5, 5]
+    },
+    "DenoiseStage": {
+        "denoise_strength": 10
+    },
+    "ClaheStage": {
+        "clahe_clip_limit": 2.0,
+        "clahe_tile_grid_size": [8, 8]
+    },
+    "WeightStage": {
+        "adaptive_threshold_block_size": 51,
+        "adaptive_threshold_sensitivity": 15,
+        "original_color_percentage": 0.8
+    },
+    "RotateStage": {
+        "rotation_degrees": 270
+    }
 }
