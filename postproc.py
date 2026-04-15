@@ -212,27 +212,28 @@ class Scanner:
             cv2.imwrite(output_path, self.final_img)
 
 
-args = setup_arguments()
-
-pipeline = None
-if args.config:
-    with open(args.config) as f:
-        pipeline = json.load(f)
-
 def process_image(input_path, output_path, pipeline):
     print(f"Processing {os.path.basename(input_path)}...")
     Scanner(input_path, pipeline).save_image(output_path)
 
-if os.path.isdir(args.input):
-    os.makedirs(args.output, exist_ok=True)
-    images = [f for f in os.listdir(args.input) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
-    tasks = [(os.path.join(args.input, f), os.path.join(args.output, f), pipeline) for f in images]
-    with Pool(cpu_count()) as pool:
-        pool.starmap(process_image, tasks)
-    print(f"Done. {len(images)} image(s) saved to {args.output}")
-else:
-    output_path = args.output
-    if os.path.isdir(output_path):
-        output_path = os.path.join(output_path, os.path.basename(args.input))
-    Scanner(args.input, pipeline).save_image(output_path)
-    print("Done.")
+if __name__ == '__main__':
+    args = setup_arguments()
+
+    pipeline = None
+    if args.config:
+        with open(args.config) as f:
+            pipeline = json.load(f)
+
+    if os.path.isdir(args.input):
+        os.makedirs(args.output, exist_ok=True)
+        images = [f for f in os.listdir(args.input) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+        tasks = [(os.path.join(args.input, f), os.path.join(args.output, f), pipeline) for f in images]
+        with Pool(cpu_count()) as pool:
+            pool.starmap(process_image, tasks)
+        print(f"Done. {len(images)} image(s) saved to {args.output}")
+    else:
+        output_path = args.output
+        if os.path.isdir(output_path):
+            output_path = os.path.join(output_path, os.path.basename(args.input))
+        Scanner(args.input, pipeline).save_image(output_path)
+        print("Done.")

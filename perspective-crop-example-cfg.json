@@ -2,7 +2,7 @@
     "PerspectiveCropStage" : {
         "gaussian_strength": [5, 5],
         "margin": 5
-    } 
+    },
 
     "DenoiseStage": {
         "denoise_strength": 10
